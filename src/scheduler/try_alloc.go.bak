@@ -1,0 +1,166 @@
+/* try_alloc.go - try to alloc BW*/
+/*
+modification history
+--------------------
+2015/7/23, by Guang Yao, create
+*/
+/*
+DESCRIPTION
+try_alloc is currently much the same to final_alloc. The difference is
+try_alloc modifies TryAllocBW rather than AllocBW, and does not book the changes
+in free resource.
+*/
+/*
+package scheduler
+
+import (
+//"www.baidu.com/golang-lib/log"
+)
+
+import (
+	"state_manager"
+	. "types"
+	. "util"
+)
+
+func (s *Scheduler) tryAlloc() {
+	// when reach here, we get a number of pending subtasks and to-shorten subtasks
+	// group them by the resource they claim
+	agentUploadGroup := make(map[uint64][]*Subtask)   // agent id => subtasks
+	agentDownloadGroup := make(map[uint64][]*Subtask) // agent id => subtasks
+	linkGroup := make(map[string][]*Subtask)          // linkname => subtasks
+
+	// process pending subtasks
+	for agentId, subtasks := range s.pendingSubtasks {
+		// agent upload bw
+		agentUploadGroup[agentId] = subtasks
+
+		// agent download bw
+		for _, subtask := range subtasks {
+			if _, exist := agentDownloadGroup[subtask.Dst.AgentId]; !exist {
+				agentDownloadGroup[subtask.Dst.AgentId] = make([]*Subtask, 0)
+			}
+			agentDownloadGroup[subtask.Dst.AgentId] = append(agentDownloadGroup[subtask.Dst.AgentId], subtask)
+
+			// link bw
+			for _, link := range subtask.Links {
+				if _, exist := linkGroup[link.LinkName]; !exist {
+					linkGroup[link.LinkName] = make([]*Subtask, 0)
+				}
+				linkGroup[link.LinkName] = append(linkGroup[link.LinkName], subtask)
+			}
+		}
+	}
+
+	// process to-shorten subtasks
+	// To-shorten subtasks will not be append to the group here as they are existing subtasks
+	// They will be appended when append existing subtasks
+	// Here just mark the resource should be re-alloc
+	for _, subtask := range s.shortenSubtasks {
+		// agent upload bw
+		if _, exist := agentUploadGroup[subtask.Src.AgentId]; !exist {
+			agentUploadGroup[subtask.Src.AgentId] = make([]*Subtask, 0)
+		}
+
+		// agent download bw
+		if _, exist := agentDownloadGroup[subtask.Dst.AgentId]; !exist {
+			agentUploadGroup[subtask.Dst.AgentId] = make([]*Subtask, 0)
+		}
+
+		// link bw
+		for _, link := range subtask.Links {
+			if _, exist := linkGroup[link.LinkName]; !exist {
+				linkGroup[link.LinkName] = make([]*Subtask, 0)
+			}
+		}
+	}
+
+	// alloc each resource claimed between pending and existing subtasks
+	for agentId, subtasks := range agentUploadGroup {
+		agent := state_manager.GetAgentById(agentId)
+		existSubtasks := state_manager.GetAgentUploadSubtasks(agentId)
+		for _, subtask := range existSubtasks {
+			// NOTE: the demand of exising subtasks should be updated
+			// at the beginning of each cycle, when there are new finished blocks
+			subtasks = append(subtasks, subtask)
+			// add them to reAllocSubtasks
+			s.reAllocSubtasks[subtask.SubtaskId] = subtask
+		}
+
+		// alloc BW
+		allocMap := allocInterfaceBW(agent.UploadLimit, subtasks)
+
+		// set new src upload limit for each subtask
+		for _, subtask := range subtasks {
+			allocBW, _ := allocMap[subtask.SubtaskId]
+			subtask.SrcMaxAllocBW = allocBW
+		}
+	}
+
+	for agentId, subtasks := range agentDownloadGroup {
+		agent := state_manager.GetAgentById(agentId)
+		existSubtasks := state_manager.GetAgentDownloadSubtasks(agentId)
+		for _, subtask := range existSubtasks {
+			subtasks = append(subtasks, subtask)
+			// add them to reAllocSubtasks
+			s.reAllocSubtasks[subtask.SubtaskId] = subtask
+		}
+		allocMap := allocInterfaceBW(agent.DownloadLimit, subtasks)
+
+		// set new dst download limit for each subtask
+		for _, subtask := range subtasks {
+			allocBW, _ := allocMap[subtask.SubtaskId]
+			subtask.DstMaxAllocBW = allocBW
+		}
+	}
+
+	for linkname, subtasks := range linkGroup {
+		link := state_manager.GetLinkByName(linkname)
+		existSubtasks := state_manager.GetLinkSubtasks(link)
+		for _, subtask := range existSubtasks {
+			subtasks = append(subtasks, subtask)
+			// add them to reAllocSubtasks
+			s.reAllocSubtasks[subtask.SubtaskId] = subtask
+		}
+		allocMap := allocLinkBW(link.Quota, subtasks)
+
+		// set new dst download limit for each subtask
+		for _, subtask := range subtasks {
+			allocBW, _ := allocMap[subtask.SubtaskId]
+			subtask.LinkMaxAllocBW[linkname] = allocBW
+		}
+	}
+
+	// set the rate of reAllocSubtasks
+	for _, subtask := range s.reAllocSubtasks {
+		// calc new bottleneck
+
+		bottleneck := Min(subtask.SrcMaxAllocBW, subtask.DstMaxAllocBW)
+		for _, linkBW := range subtask.LinkMaxAllocBW {
+			if linkBW < bottleneck {
+				bottleneck = linkBW
+			}
+		}
+
+		subtask.TrialAllocBW = bottleneck
+	}
+
+	// set the rate of pendingSubtasks
+	for _, agentSubtasks := range s.pendingSubtasks {
+		for _, subtask := range agentSubtasks {
+			// calc new bottleneck
+			bottleneck := Min(subtask.SrcMaxAllocBW, subtask.DstMaxAllocBW)
+			for _, linkBW := range subtask.TrialLinkMaxAllocBW {
+				if linkBW < bottleneck {
+					bottleneck = linkBW
+				}
+			}
+
+			subtask.TrialAllocBW = bottleneck
+		}
+	}
+
+	//TBD: should we alloc the free resource?
+
+	//TBD: should we check whether there are bad alloc?
+}*/

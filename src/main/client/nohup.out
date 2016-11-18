@@ -1,0 +1,18 @@
+stat dt-controller.go: no such file or directory
+Begin at 2016-05-23 18:35:17.344028742 +0800 CST
+ApiServer.SubmitTask test1.jx.baidu.com, from http://test1.yf.baidu.com/data: state:0, errMsg: 
+
+ApiServer.SubmitTask copy1.jx.baidu.com, from http://test1.yf.baidu.com/data: state:0, errMsg: 
+
+ApiServer.SubmitTask test2.jx.baidu.com, from http://test2.yf.baidu.com/data: state:0, errMsg: 
+
+ApiServer.SubmitTask copy2.jx.baidu.com, from http://test2.yf.baidu.com/data: state:0, errMsg: 
+
+ApiServer.SubmitTask test1.tc.baidu.com, from http://test1.yf.baidu.com/data: state:0, errMsg: 
+
+ApiServer.SubmitTask copy1.tc.baidu.com, from http://test1.yf.baidu.com/data: state:0, errMsg: 
+
+ApiServer.SubmitTask test2.tc.baidu.com, from http://test2.yf.baidu.com/data: state:0, errMsg: 
+
+ApiServer.SubmitTask copy2.tc.baidu.com, from http://test2.yf.baidu.com/data: state:0, errMsg: 
+

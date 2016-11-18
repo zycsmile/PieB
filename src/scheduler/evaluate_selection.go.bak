@@ -1,0 +1,29 @@
+/* evaluate_selection.go - evaluate */
+/*
+modification history
+--------------------
+2015/7/23, by Guang Yao, create
+*/
+/*
+DESCRIPTION
+*/
+package scheduler
+
+import (
+//"www.baidu.com/golang-lib/log"
+)
+
+import (
+	"state_manager"
+	. "types"
+	. "util"
+)
+
+/*
+func (s *Scheduler) evaluateTrialSelection() (score int64) {
+	score = 0
+
+	// simply loop over all the existing subtasks and pending subtasks
+	existingSubtasks := state_manager.GetAllSubtasks()
+}
+*/

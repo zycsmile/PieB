@@ -1,0 +1,315 @@
+/* schedule_task.go - func to schedule task*/
+/*
+modification history
+--------------------
+2015/6/4, by Guang Yao, create
+*/
+/*
+DESCRIPTION
+*/
+package scheduler
+
+import (
+	//"container/list"
+	"fmt"
+	//"math"
+	"time"
+)
+
+import (
+//"www.baidu.com/golang-lib/log"
+)
+
+import (
+	"meta_service"
+	"state_manager"
+	. "types"
+)
+
+const (
+	BW_BUFF_FACTOR            = 0.1
+	CONCURRENT_UPLOAD_LIMIT   = 10
+	CONCURRENT_DOWNLOAD_LIMIT = 10
+)
+
+/*
+func (s *Scheduler) processPendingTasks(pendingTaskQ *list.List) {
+	for e := pendingTaskQ.Front(); e != nil; e = e.Next() {
+		t, err := s.preProcessNewTaskEvent(e.Value.(*NewTaskEvent))
+		if err != nil {
+			// TODO: do something here
+			log.Logger.Error("err in pre-process new task event:%s", err.Error())
+			continue
+		}
+		s.processPendingTask(t)
+	}
+}
+
+func (s *Scheduler) processPendingTask(task *Task) error {
+	dataId := task.Data.DataId
+	blks := task.RemainBlocks
+	var err error
+
+	pendingSubtasks := make(map[uint64]*Subtask) // src agent => new subtask
+	for _, blk := range blks {
+		// Generate a new subtask
+		st := state_manager.CreateSubtask(task)
+		st.RemainBlocks = []*Block{blk}
+		st.ReqBW = calcReqBW(blk.Size, st.Deadline)
+		st.Laxity = st.Deadline - int64(blk.Size/st.Dst.DownloadLimit)
+
+		// Get all the candidates
+		candidates := state_manager.GetBlockLocations(dataId, blk.BlockIndex)
+		if candidates == nil {
+			// TODO: Add pending subtask
+			continue
+		}
+
+		// pick a src
+		src, allocBW := s.pickSource(st, candidates)
+		if src == nil {
+			// TODO: do something here
+			continue
+		}
+		st.Src = src
+		st.AllocBW = allocBW
+		if st.Src.Idc != st.Dst.Idc {
+			st.Links, err = state_manager.GetIdcPath(st.Src.Idc, st.Dst.Idc)
+			if err != nil {
+				log.Logger.Error("err in get idc path:%s", err.Error())
+				continue
+			}
+		}
+
+		// add to pending subtasks
+		agentPendingSubtask, exist := pendingSubtasks[st.Src.AgentId]
+		if exist {
+			// merge with current subtask
+			agentPendingSubtask.RemainBlocks = append(agentPendingSubtask.RemainBlocks, blk)
+			agentPendingSubtask.ReqBW = agentPendingSubtask.ReqBW + st.ReqBW
+			agentPendingSubtask.Laxity -= blk.Size / st.Dst.DownloadLimit
+
+			continue
+		}
+
+		// record a new pending subtask
+		pendingSubtasks[st.Src.AgentId] = st
+		s.pendingSubtasks[st.SubtaskId] = st
+	}
+
+	return nil
+}
+*/
+
+/*
+func (s *Scheduler) pickSource(st *Subtask, candidates []*Agent) (src *Agent, allocBW int64) {
+	// classify srcs by distance
+	sameIdcSrcs, sameRegionSrcs, crossRegionSrcs := s.classifyCandidateByDistance(st.Dst, candidates)
+
+	// calc dst limitation
+	DstMaxBW := s.dstRateLimitCalc(st)
+
+	// if a src can provide leastReq, it will be enough
+	leastReq := min(DstMaxBW, st.ReqBW)
+
+	// Check same idc srcs
+	sameIdcBestAgent, sameIdcMaxBW := nil, 0
+	if len(sameIdcSrcs) > 0 {
+		sameIdcBestAgent, sameIdcMaxBW = s.evaluateSameIdcSrcs(st, leastReq, sameIdcSrcs)
+	}
+	if sameIdcBestAgent != nil && sameIdcMaxBW >= leastReq {
+		return sameIdcBestAgent, min(sameIdcMaxBW, DstMaxBW)
+	}
+
+	// Check same region srcs
+	sameRegionBestAgent, sameRegionMaxBW := nil, 0
+	if len(sameRegionSrcs) > 0 {
+		sameRegionBestAgent, sameRegionMaxBW = s.evaluateSameRegionSrcs(st, leastReq, sameRegionSrcs)
+	}
+	if sameRegionBestAgent != nil && sameRegionMaxBW >= leastReq {
+		return sameRegionBestAgent, min(sameRegionMaxBW, DstMaxBW)
+	}
+
+	// Check cross region srcs
+	crossRegionBestAgent, crossRegionMaxBW := nil, 0
+	if len(crossRegionSrcs) > 0 {
+		crossRegionBestAgent, crossRegionMaxBW = s.evaluatecrossRegionSrcs(st, leastReq, crossRegionSrcs)
+	}
+	if crossRegionBestAgent != nil && crossRegionMaxBW >= leastReq {
+		return crossRegionBestAgent, min(crossRegionMaxBW, DstMaxBW)
+	}
+
+	return nil, 0
+}*/
+
+// Calc the BW can be alloc from agent download BW, given existing and pending subtasks
+/*func (s *Scheduler) dstRateLimitCalc(st *Subtask) (DstMaxBW int) {
+	// get current downloading subtasks on the dst agent
+	subtasks := state_manager.GetAgentDownloadSubtasks(st.Dst.AgentId)
+
+	// get pending subtasks on the dst agent
+	// TODO: make it faster
+	for _, pst := range s.pendingSubtasks {
+		if pst.Dst == st.Dst {
+			subtasks = append(subtasks, pst)
+		}
+	}
+
+	// append the new subtask
+	subtasks = append(subtasks, st)
+
+	// alloc
+	allocMap := allocInterfaceBW(st.Dst.DownloadLimit, subtasks)
+	DstMaxBW, _ = allocMap[st.SubtaskId]
+
+	return DstMaxBW
+}
+
+// Calc the BW can be alloc from agent upload BW, given existing and pending subtasks
+func (s *Scheduler) srcRateLimitCalc(srcAgent *Agent, st *Subtask) (SrcMaxBW int) {
+	// get current downloading subtasks on the dst agent
+	subtasks := state_manager.GetAgentUploadSubtasks(srcAgent.AgentId)
+
+	// get pending subtasks on the dst agent
+	// TODO: make it faster
+	for _, pst := range s.pendingSubtasks {
+		if pst.Src == srcAgent {
+			subtasks = append(subtasks, pst)
+		}
+	}
+
+	// append the new subtask
+	subtasks = append(subtasks, st)
+
+	// alloc
+	allocMap := allocInterfaceBW(st.Dst.DownloadLimit, subtasks)
+	SrcMaxBW, _ = allocMap[st.SubtaskId]
+
+	return SrcMaxBW
+}
+
+// Calc the BW can be alloc from link BW, given existing and pending subtasks on the lin
+func (s *Scheduler) linkRateLimitCalc(link *IdcLink, st *Subtask) (LinkMaxBW int) {
+	// get current downloading subtasks on the dst agent
+	subtasks := state_manager.GetLinkSubtasks(link.LinkName)
+
+	// get pending subtasks on the link
+	// TODO: make it faster
+	for _, pst := range s.pendingSubtasks {
+		for _, stlink := range pst.Links {
+			if stlink == link {
+				subtasks = append(subtasks, pst)
+				break
+			}
+		}
+	}
+
+	// append the new subtask
+	subtasks = append(subtasks, st)
+
+	// alloc
+	// TODO: make it faster
+	allocMap := allocLinkBW(link.Quota, subtasks)
+	SrcMaxBW, _ = allocMap[st.SubtaskId]
+
+	return SrcMaxBW
+}
+
+func (s *Scheduler) evaluateSameIdcSrcs(st *Subtask, leastReq int,
+	sameIdcSrcs map[uint64]*Agent) (*Agent, int) {
+	// loop over all the srcs to check if any src own enough resource
+	for _, srcAgent := range sameIdcSrcs {
+		// check upload free satiesfis
+		if srcAgent.UploadFree >= leastReq {
+			return srcAgent, srcAgent.UploadFree
+		}
+	}
+
+	// loop over all the srcs to check if BW can be get from the other subtasks
+	// cur max alloc and cur best agent
+	bestAgent := nil
+	bestAlloc := 0
+	for _, srcAgent := range sameIdcSrcs {
+		SrcMaxBW := s.srcRateLimitCalc(st, srcAgent)
+
+		// if satiesfying, return
+		if SrcMaxBW >= leastReq {
+			return srcAgent, SrcMaxBW
+		}
+
+		// if better than current best, set to current best
+		if SrcMaxBW > bestAlloc {
+			bestAlloc = SrcMaxBW
+			bestAgent = srcAgent
+		}
+	}
+
+	// no satiesfying src found, return best
+	return bestAgent, bestAlloc
+}
+
+func (s *Scheduler) evaluateSameRegionSrcs(st *Subtask, leastReq int,
+	sameRegionSrcs map[uint64]*Agent) (*Agent, int) {
+	// loop over all the srcs to check if any src own enough resource
+	for _, srcAgent := range sameRegionSrcs {
+		if srcAgent.UploadFree >= leastReq {
+			// check free BW on IDC links
+			// TODO: classify by IDC?
+			links := state_manager.GetIdcPath(srcAgent.Idc, st.Dst.Idc)
+			isSatiesfied := true
+			bottleneck := srcAgent.UploadFree
+			for _, link := range links {
+				if link.Free < leastReq {
+					isSatiesfied := false
+					break
+				}
+
+				// set min value
+				if link.Free < bottleneck {
+					bottleneck = link.Free
+				}
+			}
+
+			// if satiesfied
+			if isSatiesfied {
+				// return the new bottlenet
+				return srcAgent, bottleneck
+			}
+		}
+	}
+
+	// no enough free BW found, check if BW can be got from the others
+	// cur max alloc and cur best agent
+	bestAgent := nil
+	bestAlloc := 0
+	for _, srcAgent := range sameRegionSrcs {
+		SrcMaxBW := s.srcRateLimitCalc(st, srcAgent)
+		links := state_manager.GetIdcPath(srcAgent.Idc, st.Dst.Idc)
+		bottleneck := SrcMaxBW
+		for _, link := range links {
+			linkMaxBW := s.linkRateLimitCalc(st, srcAgent)
+			if linkMaxBW < bottleneck {
+				bottleneck = linkMaxBW
+			}
+		}
+
+		// if bottleneck BW can satiesfy
+		if bottleneck >= leastReq {
+			return srcAgent, bottleneck
+		}
+
+		// current best
+		if bottleneck > bestAlloc {
+			bestAgent = srcAgent
+			bestAlloc = bottleneck
+		}
+	}
+
+	return bestAgent, bestAlloc
+}
+
+func (s *Scheduler) evaluateCrossRegionSrcs(st *Subtask, leastReq int,
+	sameRegionSrcs map[uint64]*Agent) (*Agent, int) {
+	return s.evaluateSameRegionSrcs(st, leastReq, sameRegionSrcs)
+}
+*/

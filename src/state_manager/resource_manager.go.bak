@@ -1,0 +1,112 @@
+/* resource_manager.go - manager of resource*/
+/*
+modification history
+--------------------
+2015/6/4, by Guang Yao, create
+*/
+/*
+DESCRIPTION
+*/
+package state_manager
+
+import (
+    "sync"
+)
+
+import (
+//"www.baidu.com/golang-lib/log"
+)
+
+import (
+    . "types"
+    "util"
+)
+
+type ResourceManager struct {
+    lock          sync.RWMutex
+    resourceTable map[uint64]*Resource
+}
+
+func NewResourceManager() *ResourceManager {
+    m := new(ResourceManager)
+
+    m.resourceTable = make(map[uint64]*Resource)
+
+    return m
+}
+
+func (m *ResourceManager) hasResource(id uint64) bool {
+    m.lock.RLock()
+    defer m.lock.RUnlock()
+
+    _, exist := m.resourceTable[id]
+    return exist
+}
+
+func (m *ResourceManager) addResource(r *BwResource) {
+    m.lock.Lock()
+    defer m.lock.Unlock()
+
+    m.resourceTable[r.BwResourceId] = r
+}
+
+func (m *ResourceManager) registerAgentResource(agent *Agent) {
+    uploadResource := new(BwResource)
+    uploadResource.SetCapability(agent.GetUploadLimit())
+    uploadResource.SetFree(agent.GetUploadLimit())
+    uploadResource.BwResourceId = util.GenerateUid()
+    for m.hasResource(uploadResource.BwResourceId) {
+        uploadResource.BwResourceId = util.GenerateUid()
+    }
+    agent.UploadResourceId = uploadResource.BwResourceId
+    m.addResource(uploadResource)
+
+    downloadResource := new(BwResource)
+    downloadResource.SetCapability(agent.GetDownloadLimit())
+    downloadResource.SetFree(agent.GetDownloadLimit())
+    downloadResource.BwResourceId = util.GenerateUid()
+    for m.hasResource(downloadResource.BwResourceId) {
+        downloadResource.BwResourceId = util.GenerateUid()
+    }
+    agent.DownloadResourceId = downloadResource.BwResourceId
+    m.addResource(downloadResource)
+}
+
+func (m *ResourceManager) registerIdcLinkResource(links []*IDCLink) {
+    for _, link := range links {
+        linkResource := new(BwResource)
+        linkResource.SetCapability(link.GetQuota() * 1024 * 1024 / 8) // from Gbps => KB/s
+        linkResource.SetFree(link.GetQuota() * 1024 * 1024 / 8)       // from Gbps => KB/s
+        linkResource.BwResourceId = util.GenerateUid()
+        for m.hasResource(linkResource.BwResourceId) {
+            linkResource.BwResourceId = util.GenerateUid()
+        }
+        link.ResourceId = linkResource.BwResourceId
+        m.addResource(linkResource)
+    }
+}
+
+func (m *ResourceManager) registerRegionLinkResource(links []*RegionLink) {
+    for _, link := range links {
+        linkResource := new(BwResource)
+        linkResource.SetCapability(link.GetQuota() * 1024 * 1024 / 8) // from Gbps => KB/s
+        linkResource.SetFree(link.GetQuota() * 1024 * 1024 / 8)       // from Gbps => KB/s
+        linkResource.BwResourceId = util.GenerateUid()
+        for m.hasResource(linkResource.BwResourceId) {
+            linkResource.BwResourceId = util.GenerateUid()
+        }
+        link.ResourceId = linkResource.BwResourceId
+        m.addResource(linkResource)
+    }
+}
+
+func (sm *StateManager) GetResourceFree(id uint64) int {
+    sm.resourceManager.lock.RLock()
+    defer sm.resourceManager.lock.RUnlock()
+
+    if resource, exist := sm.resourceManager.resourceTable[id]; !exist {
+        return 0
+    } else {
+        return resource.GetFree()
+    }
+}

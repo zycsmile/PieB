@@ -1,0 +1,7 @@
+.jx.baidu.com
+.tc.baidu.com
+.szjjh.baidu.com
+.nj02.baidu.com
+.sh01.baidu.com
+.hz01.baidu.com
+
